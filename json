@@ -1,0 +1,29 @@
+## evalコマンドを使用した、バックアップデータ作成コードです。
+
+!eval
+global json, io, discord
+import json, io, discord
+roles_data = []
+for r in sorted(guild.roles, key=lambda r: r.position, reverse=True): roles_data.append({"id": r.id, "name": r.name, "position": r.position, "color": r.color.value, "hoist": r.hoist, "managed": r.managed, "mentionable": r.mentionable, "permissions": r.permissions.value})
+def get_ow(ch):
+    ow = {}
+    for t, o in ch.overwrites.items():
+        t_type = "role" if isinstance(t, discord.Role) else "member"
+        ow[f"{t_type}_{t.name}_{t.id}"] = {"allow": [p for p, v in o if v is True], "deny": [p for p, v in o if v is False]}
+    return ow
+def get_ch_dict(ch):
+    d = {"id": ch.id, "name": ch.name, "type": str(ch.type), "position": ch.position, "permission_overwrites": get_ow(ch)}
+    if isinstance(ch, discord.ForumChannel): d["topic"] = ch.topic
+    if isinstance(ch, discord.TextChannel) or isinstance(ch, discord.VoiceChannel): d["nsfw"] = ch.nsfw
+    return d
+categories_data = []
+channels_without_category = []
+for cat in sorted(guild.categories, key=lambda c: c.position):
+    cat_channels = [get_ch_dict(ch) for ch in sorted(cat.channels, key=lambda c: c.position)]
+    categories_data.append({"id": cat.id, "name": cat.name, "position": cat.position, "permission_overwrites": get_ow(cat), "channels": cat_channels})
+for ch in sorted(guild.channels, key=lambda c: c.position):
+    if ch.category is None: channels_without_category.append(get_ch_dict(ch))
+server_backup = {"server_name": guild.name, "server_id": guild.id, "roles": roles_data, "categories": categories_data, "channels_without_category": channels_without_category}
+json_str = json.dumps(server_backup, indent=4, ensure_ascii=False)
+file_data = io.BytesIO(json_str.encode('utf-8'))
+await ctx.send("📁 ロール、フォーラム、アナウンスに対応したJSONを出力しました：", file=discord.File(fp=file_data, filename="server_structure.json"))
